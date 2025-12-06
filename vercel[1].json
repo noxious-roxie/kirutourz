@@ -1,10 +1,5 @@
 {
-  "version": 2,
-  "routes": [
-    { "src": "/api/fetchSmogon", "dest": "/api/fetchSmogon.js" },
-    { "src": "/api/parse-thread", "dest": "/api/parse-thread.js" },
-    { "src": "/api/generate-replays", "dest": "/api/generate-replays.js" },
-    { "src": "/api/generate-key", "dest": "/api/generate-key.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+"version": 2,
+"builds": [{ "src": "index.html", "use": "@vercel/static" }],
+"routes": [{ "src": "/(.*)", "dest": "/index.html" }]
 }
