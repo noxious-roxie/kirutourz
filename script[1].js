@@ -1,108 +1,84 @@
-/* script.js - frontend wiring for Tournament Formatter */
+const PROXY = "[https://corsproxy.io/](https://corsproxy.io/)?";
 
-// Manual overrides for replay URLs (keyed by "PlayerA vs PlayerB")
-const overrideReplayLinks = {};
-
-// DOM elements
-const threadInput = document.getElementById("threadInput");
-const btnParse = document.getElementById("btnParse");
-const btnGenerateReplays = document.getElementById("btnGenerateReplays");
-const btnGenerateKey = document.getElementById("btnGenerateKey");
-
-const parsedArea = document.getElementById("parsedArea");
-const parsedJson = document.getElementById("parsedJson");
-
-const outputArea = document.getElementById("outputArea");
-const bbOutput = document.getElementById("bbOutput");
-
-const keyArea = document.getElementById("keyArea");
-const keyOutput = document.getElementById("keyOutput");
-
-let parsedData = null;
-
-// helper: call proxy fetch on server
-async function fetchThreadHTML(url) {
-  const res = await fetch('/api/fetchSmogon?url=' + encodeURIComponent(url));
-  if (!res.ok) throw new Error('Failed to fetch thread via server proxy');
-  const j = await res.json();
-  if (j.error) throw new Error(j.error);
-  return j.html || j.raw || '';
+async function fetchThread(url) {
+try {
+const res = await fetch(url);
+if (!res.ok) throw new Error("Primary fetch failed");
+return await res.text();
+} catch (e) {
+// Try proxy
+const proxied = PROXY + encodeURIComponent(url);
+const res2 = await fetch(proxied);
+if (!res2.ok) throw new Error("Proxy fetch failed");
+return await res2.text();
+}
 }
 
-// Parse button: fetch thread (if URL) or use raw text
-btnParse.addEventListener('click', async () => {
-  const input = threadInput.value.trim();
-  if (!input) { alert('Please paste a Smogon thread URL or OP text'); return; }
+document.getElementById("btnParse").onclick = async () => {
+const input = document.getElementById("threadInput").value.trim();
+if (!input) return alert("Paste a URL or OP text.");
 
-  parsedJson.textContent = 'Parsing...';
-  parsedArea.classList.remove('hidden');
+let rawHTML = "";
+let OPtext = "";
 
-  try {
-    let raw;
-    if (/^https?:\/\//i.test(input)) {
-      raw = await fetchThreadHTML(input);
-    } else {
-      raw = input;
-    }
+if (input.startsWith("http")) {
+try {
+rawHTML = await fetchThread(input);
+} catch {
+alert("Could not fetch URL. Try pasting the OP manually.");
+return;
+}
+} else {
+OPtext = input;
+}
 
-    // call parse endpoint to build structured result
-    const res = await fetch('/api/parse-thread', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ input: raw })
-    });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error);
+const parsed = parseOP(rawHTML || OPtext);
+renderPreview(parsed);
 
-    parsedData = j.parsed || { raw };
-    parsedJson.textContent = JSON.stringify(parsedData, null, 2);
+document.getElementById("btnGenerateReplays").disabled = false;
+document.getElementById("btnGenerateKey").disabled = false;
+};
 
-    // enable buttons
-    btnGenerateReplays.disabled = false;
-    btnGenerateKey.disabled = false;
+function parseOP(raw) {
+const temp = document.createElement("div");
+temp.innerHTML = raw;
 
-  } catch (err) {
-    parsedJson.textContent = 'ERROR: ' + err.message;
-    btnGenerateReplays.disabled = true;
-    btnGenerateKey.disabled = true;
-  }
-});
+const text = temp.innerText || raw;
+const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-// Generate Replays: send parsed data to backend generator
-btnGenerateReplays.addEventListener('click', async () => {
-  if (!parsedData) return alert('Parse a thread first.');
+const matches = lines.filter(l => l.includes("vs") || l.includes("VS"));
 
-  const payload = { parsed: parsedData, raw: parsedData.raw || '', options: { useSprites: true, autoPrefixes: true, overrideReplayLinks } };
+return { matches, raw };
+}
 
-  try {
-    const res = await fetch('/api/generate-replays', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error);
-    bbOutput.value = j.bbcode || '';
-    outputArea.classList.remove('hidden');
-  } catch (err) {
-    alert('Generate failed: ' + err.message);
-  }
-});
+function renderPreview(parsed) {
+const out = document.getElementById("parsedJson");
+document.getElementById("parsedArea").classList.remove("hidden");
 
-// Generate Key
-btnGenerateKey.addEventListener('click', async () => {
-  if (!parsedData) return alert('Parse a thread first.');
-  try {
-    const res = await fetch('/api/generate-key', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ parsed: parsedData, options: { useSprites: true } })
-    });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error);
-    keyOutput.value = j.keyBBCode || '';
-    keyArea.classList.remove('hidden');
-  } catch (err) {
-    alert('Generate KEY failed: ' + err.message);
-  }
-});
+out.textContent = JSON.stringify(parsed, null, 2);
+}
+
+document.getElementById("btnGenerateReplays").onclick = () => {
+const preview = document.getElementById("parsedJson").textContent;
+const parsed = JSON.parse(preview);
+
+const bb = parsed.matches
+.map(m => `[B]${m}[/B] - Replay: [URL]paste replay here[/URL]`)
+.join("\n");
+
+document.getElementById("bbOutput").value = bb;
+document.getElementById("outputArea").classList.remove("hidden");
+};
+
+document.getElementById("btnGenerateKey").onclick = () => {
+const preview = document.getElementById("parsedJson").textContent;
+const parsed = JSON.parse(preview);
+
+const key = parsed.matches
+.map((m, i) => `T${i + 1}: ${m}`)
+.join("\n");
+
+document.getElementById("keyOutput").value = key;
+document.getElementById("keyArea").classList.remove("hidden");
+};
+
