@@ -1,0 +1,19 @@
+:root {
+  --bg: #0b1220;
+  --card: #07121b;
+  --accent: #0ea5a4;
+  --text: #e6eef6;
+}
+body { margin:0; font-family: Inter, system-ui, Arial; background:var(--bg); color:var(--text); }
+.container { max-width:980px; margin:28px auto; padding:24px; }
+h1 { margin:0 0 12px 0; font-size:28px; }
+.full { display:block; margin:12px 0; }
+textarea { width:100%; padding:12px; border-radius:8px; border:1px solid #233043; background:#03101a; color:var(--text); min-height:90px; }
+.controls { display:flex; gap:18px; flex-wrap:wrap; margin:10px 0; }
+.buttons { margin:12px 0; display:flex; gap:12px; }
+button { background:var(--accent); border:none; color:#022; padding:10px 14px; border-radius:8px; cursor:pointer; }
+button:disabled { opacity:0.5; cursor:default; }
+.card { background:var(--card); padding:12px; border-radius:8px; margin-top:12px; border:1px solid #132030; }
+.actions { margin-top:8px; }
+.hidden { display:none; }
+pre { white-space:pre-wrap; word-wrap:break-word; background:#05121a; padding:10px; border-radius:6px; }
